@@ -16,12 +16,22 @@ export enum PaymentMethod {
   TRANSFER = 'CHUYỂN KHOẢN'
 }
 
+export interface PresetService {
+  id: string;
+  name: string;
+  defaultPrice: number;
+  category: string;
+}
+
 export interface CustomerInfo {
   name: string;
   phone: string;
   address?: string;
-  company?: string;
-  socialLink?: string; // Zalo/Facebook
+  buyerName?: string; 
+  companyName?: string; 
+  taxCode?: string; 
+  companyAddress?: string; 
+  socialLink?: string; 
 }
 
 export interface OrderItem {
@@ -31,6 +41,15 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   note: string;
+}
+
+export interface Expense {
+  id: string;
+  date: string;
+  category: string;
+  amount: number;
+  note: string;
+  employeeId: string;
 }
 
 export interface Order {
@@ -51,5 +70,7 @@ export interface Order {
 export interface DailyStats {
   date: string;
   revenue: number;
+  expenses: number;
+  profit: number;
   count: number;
 }

@@ -1,48 +1,57 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+// Always use { apiKey: process.env.API_KEY } for initialization
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export async function parseOrderInput(input: string) {
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: `Bạn là một trợ lý ảo chuyên nghiệp cho cửa hàng photocopy và in ấn. 
-    Nhiệm vụ: Phân tích đoạn văn bản từ giọng nói và trích xuất danh sách các dịch vụ chi tiết.
-    
-    Quy tắc nghiệp vụ:
-    1. Nhận diện các dịch vụ phổ biến: Photocopy, In màu, In đen trắng, Đóng tập, Ép nhựa, In decal, Khổ giấy (A0, A1, A2, A3, A4, A5).
-    2. Nếu khách nói "một trăm tờ" -> quantity = 100.
-    3. Nếu không có đơn giá trong lời nói, hãy tự động gán giá thị trường hợp lý:
-       - Photocopy A4: 500đ
-       - In màu A4: 2000đ - 5000đ
-       - Ép nhựa: 5000đ
-       - Đóng gáy xoắn: 15000đ
-    4. Phân tách rõ ràng nếu có nhiều dịch vụ trong một câu (ví dụ: "in 10 tờ màu A4 và photo 50 bản 2 mặt").
-    5. Trích xuất ghi chú như "in 2 mặt", "giấy dày", "lấy gấp".
-
-    Đầu vào: "${input}"`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            service: { type: Type.STRING, description: "Tên dịch vụ chi tiết" },
-            quantity: { type: Type.NUMBER, description: "Số lượng (số nguyên)" },
-            unitPrice: { type: Type.NUMBER, description: "Đơn giá (VNĐ)" },
-            note: { type: Type.STRING, description: "Ghi chú kỹ thuật hoặc yêu cầu riêng" }
-          },
-          required: ["service", "quantity", "unitPrice"]
-        }
-      }
-    }
-  });
+  // Lấy danh sách preset để nhúng vào prompt
+  const savedPresets = localStorage.getItem('nb_preset_services');
+  const presetsContext = savedPresets ? `DANH MỤC DỊCH VỤ CỦA CỬA HÀNG (ƯU TIÊN): ${savedPresets}` : "";
 
   try {
-    return JSON.parse(response.text || "[]");
+    const result = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Bạn là trợ lý bán hàng chuyên nghiệp tại cửa hàng photocopy Nhân Bản. 
+      Nhiệm vụ: Bóc tách đơn hàng từ lời nói hoặc tin nhắn của khách hàng Việt Nam.
+      
+      ${presetsContext}
+
+      Nội dung khách nói: "${input}"
+      
+      QUY TẮC XỬ LÝ NGÔN NGỮ TIẾNG VIỆT:
+      1. Đơn vị tiền tệ: 
+         - "k", "ngàn", "nghìn" -> x1000
+         - "lít", "xị" -> 100000, 10000
+         - "chục" -> 10 (số lượng) hoặc 10000 (giá tiền)
+      2. Tên dịch vụ phổ biến:
+         - "photo", "phô", "tô" -> Photocopy
+         - "in", "ấn" -> In ấn
+         - "đóng tập", "đóng gáy", "lò xo" -> Đóng sách
+      3. Tham chiếu danh mục dịch vụ bên trên để lấy đơn giá đúng nếu khách không nói giá.
+      4. Kết quả trả về là mảng JSON các đối tượng.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              service: { type: Type.STRING, description: "Tên hàng hóa/dịch vụ" },
+              quantity: { type: Type.NUMBER, description: "Số lượng" },
+              unitPrice: { type: Type.NUMBER, description: "Đơn giá (số)" },
+              note: { type: Type.STRING, description: "Ghi chú thêm" }
+            },
+            required: ["service", "quantity", "unitPrice"],
+            propertyOrdering: ["service", "quantity", "unitPrice", "note"]
+          }
+        }
+      }
+    });
+
+    return JSON.parse(result.text || "[]");
   } catch (e) {
-    console.error("Lỗi phân tích AI:", e);
+    console.error("Gemini Error:", e);
     return [];
   }
 }
