@@ -16,6 +16,21 @@ export enum PaymentMethod {
   TRANSFER = 'CHUYỂN KHOẢN'
 }
 
+export enum ProductType {
+  BOOK = 'SÁCH',
+  STATIONERY = 'VĂN PHÒNG PHẨM'
+}
+
+export interface InventoryProduct {
+  id: string;
+  type: ProductType;
+  name: string;
+  image?: string;
+  stock: number;
+  importPrice: number;
+  salePrice: number;
+}
+
 export interface PresetService {
   id: string;
   name: string;
@@ -41,15 +56,21 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   note: string;
+  productId?: string; // Để trừ kho khi bán
 }
 
 export interface Expense {
   id: string;
   date: string;
   category: string;
+  itemName?: string; // Specific item purchased
   amount: number;
   note: string;
   employeeId: string;
+  // Enhanced procurement fields
+  supplierName?: string;
+  quantity?: number;
+  paymentMethod?: PaymentMethod;
 }
 
 export interface Order {
